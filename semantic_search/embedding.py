@@ -42,3 +42,5 @@ for e in emb:
     print(e[:3])
 
 len(emb[0])
+chart = umap_plot(sentences, emb)
+chart.interactive()
