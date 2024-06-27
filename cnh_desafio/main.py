@@ -1,106 +1,139 @@
 import os
 from openai import OpenAI
-from typing_extensions import override
-from openai import AssistantEventHandler
+import anthropic
+import base64
+import json
 
 from dotenv import load_dotenv, find_dotenv
 _ = load_dotenv(find_dotenv())
 
 import time
+
+CNH_FILE = "C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/foto_arquivo/foto/cnh1_rotated1.jpg"
+CRLV_FILE = "C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/foto_arquivo/foto/cnh1_rotated1.jpg"
+CNH_E_FILE = "C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/foto_arquivo/arquivo/CNH-e.pdf" 
+image_media_type = "image/jpeg"
+
 start_time = time.time()
+client_openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Transformando um arquivo para um arquivo mais legível para o GPT
+def create_file_openai(path):
+  return client_openai.files.create(file = open(path, "rb"),purpose='vision')
 
-def create_file(path):
-  return client.files.create(file = open(path, "rb"),purpose='assistants')
+# Transformando um arquivo para um arquivo mais legível para o Anthropic
+def create_file_anthropic(path):
+  with open(path, 'rb') as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
 
-IMG_FILE = "C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/CNH_Aberta/00000030_in.jpg"
-user_file = create_file(IMG_FILE)
+#Arquivos
+cnh_file = create_file_openai(CNH_FILE)
+crlv_file = create_file_openai(CRLV_FILE)
 
-assistant = client.beta.assistants.create(
-    name="Math Tutor",
-    instructions=
-    '''You will be provided with a brazilian driver license and your task is to transform it in a JSON, exaclty like that: 
+PROMPT = '''You are a document analyst and will be provided with a brazilian driver license. Your task is to transform it in a JSON exaclty like that: 
         {
           "nome": "",
-          "identidade": "",
+          "doc_identidade": "",
           "cpf": "",
           "numero_registro": "",
           "data_nascimento": "",
-          "filiacao": "",
-          "data_emissao_habilitacao": "",
+          "filiacao": {
+              "pai": "",
+              "mae": ""
+          },
+          "data_emissao": "",
           "nacionalidade": "",
-          "numero_espelho_habilitacao": "",
-          "tipos_veiculo_habilitados": "",
-          "registro_habilitacao": "",
+          "numero_espelho": "texto na vertical na lateral da carteira",
           "primeira_habilitacao": "",
           "permissionario_definitiva": "",
           "acc": "",
           "data_validade_habilitacao": "",
-          "categoria_habilitacao": "",
+          "cat_hab": "",
           "observacoes": "",
-          "codigo_seguranca": "",
-          "numero_renach": ""
+          "codigo_seguranca":"",
+          "renach": "inicia com o estado onde o documento foi retirado"
         }
-    If you cannot read something in the image you must answer only the following message: 'Desculpe, poderia mandar uma outra imagem?' ''',
-    tools=[{"type": "code_interpreter"}, {"type": "file_search"}],
-    model="gpt-4o",
+    If you cannot read something in the image provided by the user you must return the following message: 'Desculpe, poderia mandar uma outra imagem?'
+    '''
+
+thread = client_openai.beta.threads.create(
+  messages=[
+  {
+    "role": "user",
+    "content": "Aqui está a minha carteira de motorista",
+    "content": [
+      {
+        "type": "image_file",
+        "image_file": {"file_id": cnh_file.id}
+      },
+    ]
+  }
+]
 )
 
-thread = client.beta.threads.create(
-   messages=[
-    {
-      "role": "user",
-      "content": [
-        {
-          "type": "text",
-          "text": "Esta é a minha habilitação"
-        },
-        {
-          "type": "image_file",
-          "image_file": {"file_id": user_file.id}
-        },
-      ],
-    }
-  ]
+run = client_openai.beta.threads.runs.create_and_poll(
+  thread_id = thread.id,
+  assistant_id = os.environ.get('ASSISTANT_ID')
 )
- 
-class EventHandler(AssistantEventHandler):    
-  @override
-  def on_text_created(self, text) -> None:
-    print(f"\nassistant > ", end="", flush=True)
-      
-  @override
-  def on_text_delta(self, delta, snapshot):
-    print(delta.value, end="", flush=True)
-      
-  def on_tool_call_created(self, tool_call):
-    print(f"\nassistant > {tool_call.type}\n", flush=True)
-  
-  def on_tool_call_delta(self, delta, snapshot):
-    if delta.type == 'code_interpreter':
-      if delta.code_interpreter.input:
-        print(delta.code_interpreter.input, end="", flush=True)
-      if delta.code_interpreter.outputs:
-        print(f"\n\noutput >", flush=True)
-        for output in delta.code_interpreter.outputs:
-          if output.type == "logs":
-            print(f"\n{output.logs}", flush=True)
- 
-with client.beta.threads.runs.stream(
-  thread_id=thread.id,
-  assistant_id=assistant.id,
-  event_handler=EventHandler(),
-) as stream:
-  stream.until_done()
-  
-print("\n %s seconds" % (time.time() - start_time))
+openai_response = ""
+if run.status == 'completed': 
+  messages = client_openai.beta.threads.messages.list(
+    thread_id=thread.id
+  )
+  print(messages.data[0].content[0].text.value)
+  openai_response = messages.data[0].content[0].text.value
+else:
+  print(run.status)
+openai_time = time.time() - start_time
+print(f"\nOpenAi: {openai_time} seconds")
 
-'''
-with open(EXEC_TIME_JSON_PATH, "w") as json_file:
-    data = json.dumps(json_file)
-    content = {
-        "execution_time": f"{(time.time() - start_time)} seconds",
-        "accuracy": f"{accuracy}"
-    }
-'''
+start_time = time.time()
+
+cnh_file_anth = create_file_anthropic(CNH_FILE)
+
+client_anthropic = anthropic.Anthropic(api_key=os.environ.get("ANTRHOPIC_API_KEY"))
+
+message_anthropic = client_anthropic.messages.create(
+    model="claude-3-5-sonnet-20240620",
+    max_tokens = 1024,
+    temperature = 0,
+    system = PROMPT,
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": image_media_type,
+                        "data": cnh_file_anth,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": "Here's my driver license"
+                }
+            ],
+        }
+    ],
+)
+
+print(message_anthropic.content[0].text)
+anthropic_prompt = message_anthropic.content[0].text
+anthropic_time = time.time() - start_time
+print(f"\nOpenAi: {anthropic_time} seconds")
+
+def compare(openai_response:str,anthropic_response):
+
+  with open('./execution_time.json', "r") as json_file:
+      data = json.load(json_file)
+  content = {
+      "openai-time": openai_time,
+      "anthropic-time": anthropic_time,
+      "openai-aprox-tokens": len(openai_response)/4,
+      "anthropic-aprox-tokens": anthropic_time
+  }
+  data.append(content)
+  with open('./execution_time.json', "w") as json_file:
+      json.dump(data, json_file, indent=4)
