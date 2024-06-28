@@ -1,32 +1,24 @@
 [
     {
-        "anthropic-time": 5.498459339141846,
-        "anthropic-aprox-cost": 0.00234375,
-        "anthropic-aprox-tokens": 156.25,
-        "anthropic-aprox-succes-rate": 0.8333333333333334,
-        "openai-time": 10.970716714859009,
-        "openai-aprox-tokens": 153.0,
-        "openai-aprox-succes-rate": 0.7222222222222222,
-        "is_equal_response": false
-    },
-    {
-        "anthropic-time": 5.93,
-        "anthropic-aprox-cost": 0.00234375,
-        "anthropic-aprox-tokens": 156.25,
-        "anthropic-aprox-succes-rate": 0.83,
-        "openai-time": 11.73,
-        "openai-aprox-tokens": 152.5,
-        "openai-aprox-succes-rate": 0.67,
-        "is_equal_response": false
-    },
-    {
-        "anthropic-time": 6.25,
-        "anthropic-aprox-cost": 0.00234375,
-        "anthropic-aprox-tokens": 156.25,
-        "anthropic-aprox-succes-rate": 0.83,
-        "openai-time": 10.3,
-        "openai-aprox-tokens": 152.5,
-        "openai-aprox-succes-rate": 0.67,
-        "is_equal_response": false
+        "anthropic": {
+            "time": 6.63,
+            "tokens": 130.0,
+            "cost": 0.00195,
+            "accuracy": 0.61
+        },
+        "openai": {
+            "time": 9.52,
+            "tokens": 144.0,
+            "cost": 0.00216,
+            "accuracy": 0.17
+        },
+        "doc-type": {
+            "type": "image/jpeg",
+            "rotations_number": "0",
+            "distance": "normal",
+            "cnh_model": "0"
+        },
+        "response_is_equal": false,
+        "day-time": "2024-06-28 12:19:17.191667"
     }
 ]

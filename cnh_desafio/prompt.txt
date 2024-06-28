@@ -1,0 +1,39 @@
+You will be provided with an image of a Brazilian driver's license. Your task is to analyze this image and extract specific information to fill out a JSON template. Here's how to proceed:
+
+1. Examine the following image of a Brazilian driver's license:
+
+2. Extract the relevant information from the image and fill out the following JSON template. All field names should be in lowercase:
+
+{
+  "nome": "",
+  "doc_identidade": "",
+  "cpf": "",
+  "numero_registro": "",
+  "data_nascimento": "",
+  "filiacao": {
+    "pai": "",
+    "mae": ""
+  },
+  "data_emissao": "",
+  "nacionalidade": "",
+  "numero_espelho": "",
+  "primeira_habilitacao": "",
+  "permissionario_definitiva": "",
+  "acc": "",
+  "validade": "",
+  "cat_hab": "",
+  "observacoes": "",
+  "codigo_seguranca": "",
+  "renach": ""
+}
+
+3. Important notes:
+   - If you cannot read or find information for a field, leave it empty (e.g., "").
+   - For "numero_espelho", look for text in vertical orientation on the side of the license. If there are two identical numbers, choose the clearest one.
+   - For "permissionario_definitiva", enter "P", "D", or leave it empty (""). This information is typically next to "acc".
+   - For "acc", enter "Sim" if present, or leave it empty if not.
+   - For "renach", look for a code starting with two letters, typically below "codigo_seguranca".
+
+4. If the image appears rotated, mentally rotate it to its correct orientation before analyzing.
+
+5. Provide your response as a JSON object only, without any additional text or explanation.
