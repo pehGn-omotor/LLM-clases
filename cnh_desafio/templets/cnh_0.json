@@ -1,22 +1,15 @@
 {
     "nome": "leni olivia de sousa gois nunes",
-    "doc_identidade": "23758960 ssp/sp",
+    "doc_identidade": "23758960",
     "cpf": "132.410.558-50",
-    "numero_registro": "03400654660",
+    "n_registro": "03400654660",
     "data_nascimento": "30/08/1972",
-    "filiacao": {
-        "pai": "dionisio de sousa gois",
-        "mae": "eugenia maria de sousa gois"
-    },
     "data_emissao": "28/12/2019",
     "nacionalidade": "",
-    "numero_espelho": "1952930798",
-    "primeira_habilitacao": "14/01/1992",
-    "permissionario_definitiva": "",
-    "acc": "",
+    "n_espelho": "1952930798",
+    "1_hab": "14/01/1992",
     "validade": "28/12/2024",
     "cat_hab": "b",
-    "observacoes": "",
-    "codigo_seguranca":"99351126978",
+    "codigo_seguranca": "99351126978",
     "renach": "sp000413921"
 }

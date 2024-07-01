@@ -1,22 +1,15 @@
 {
     "nome": "pedro henrique gois nunes",
-    "doc_identidade": "509019547 ssp/sp",
+    "doc_identidade": "509019547",
     "cpf": "386.592.258-06",
-    "numero_registro": "08596204127",
+    "n_registro": "08596204127",
     "data_nascimento": "14/07/2005",
-    "filiacao": {
-        "pai": "dely nunes junior",
-        "mae": "leni olivia de sousa gois nunes"
-    },
     "data_emissao": "21/03/2024",
     "nacionalidade": "brasileiro",
-    "numero_espelho": "279704612",
-    "primeira_habilitacao": "20/03/2024",
-    "permissionario_definitiva": "p",
-    "acc": "",
+    "n_espelho": "279704612",
+    "1_hab": "20/03/2024",
     "validade": "19/03/2025",
     "cat_hab": "b",
-    "observacoes": "",
     "codigo_seguranca": "58994457095",
     "renach": "sp019266177"      
 }

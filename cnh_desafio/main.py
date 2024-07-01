@@ -1,26 +1,38 @@
 from openai import OpenAI
-import os
 import anthropic
+
+import os
 import base64
 import json
+
 import datetime
+
 from dotenv import load_dotenv, find_dotenv
 import time
 _ = load_dotenv(find_dotenv())
 
-def create_file_anthropic(path):
+def get_prompt(prompt):
+  with open(prompt, "r") as prompt_file:
+    return prompt_file.read()
+
+def anthropic_create_file(path):
   with open(path, 'rb') as image_file:
     return base64.b64encode(image_file.read()).decode('utf-8')
-  
-def create_file_openai(path):
-  return client_openai.files.create(file = open(path, "rb"),purpose='vision')
 
-def make_anthropic_request():
-  message_anthropic = client_anthropic.messages.create(
+def openai_create_file(path):
+  return openai_client.files.create(file = open(path, "rb"),purpose='vision')
+  
+def json_return(path):
+  with open(path, "r") as json_file:
+    data = json.load(json_file)
+    return data
+  
+def anthropic_make_request(prompt):
+  msg = anthropic_client.messages.create(
           model="claude-3-5-sonnet-20240620",
           max_tokens = 1024,
           temperature = 0,
-          system = PROMPT,
+          system = prompt,
           messages = [
           {
             "role": "user",
@@ -41,13 +53,77 @@ def make_anthropic_request():
           }
         ],
       )
-  return message_anthropic.content[0].text
+  return msg.content[0].text, msg.usage.input_tokens, msg.usage.output_tokens
 
-def create_thread(message):
-  return client_openai.beta.threads.create(
-    messages=message
+def openai_request(message):
+
+  def create_thread(message):
+    return openai_client.beta.threads.create(
+      messages=message
   )
 
+  def run_thread(thread):
+    run = openai_client.beta.threads.runs.create_and_poll(
+      thread_id = thread.id,
+      assistant_id = os.environ.get('ASSISTANT_ID')
+    )
+
+    if run.status == 'completed': 
+      messages = openai_client.beta.threads.messages.list(
+        thread_id=thread.id
+      )
+
+      return messages.data[0].content[0].text.value, run.usage.prompt_tokens, run.usage.completion_tokens, thread.id
+
+    return run.status
+  
+  return run_thread(create_thread(message))
+
+def compare_json(json1, json2):
+    if isinstance(json1, dict) and isinstance(json2, dict):
+        json1_lower = {key.lower(): value for key, value in json1.items()}
+        json2_lower = {key.lower(): value for key, value in json2.items()}
+        
+        common_keys = set(json1_lower.keys()).intersection(set(json2_lower.keys()))
+        
+        equal_fields = sum([compare_json(json1_lower[key], json2_lower[key]) for key in common_keys])
+        return equal_fields
+    elif isinstance(json1, list) and isinstance(json2, list):
+        return sum([compare_json(item1, item2) for item1, item2 in zip(json1, json2)])
+    else:
+        return 1 if json1 == json2 else 0
+
+def save_data(openai_response:str, openai_input_tokens, openai_output_tokens, openai_time, anthropic_response:str, anthropic_input_tokens, anthropic_output_tokens, anthropic_time, cnh, rotation, distance):
+
+        with open(DATA_PATH, "r") as json_file:
+            data = json.load(json_file)
+
+        content = {
+          "anthropic": {
+            "time": float(format(anthropic_time,".2f")),
+            "tokens": anthropic_input_tokens + anthropic_output_tokens,
+            "cost": float(format(anthropic_input_tokens*(3/1000000) + anthropic_output_tokens*(15/1000000), ".4f")),
+            "accuracy": float(format(compare_json(json_return(GABARITO),json.loads(anthropic_response))/13,".2f")),
+          },
+          "openai":{
+              "time": float(format(openai_time,".2f")),
+              "tokens": openai_input_tokens + openai_output_tokens,
+              "cost": float(format(openai_input_tokens*(5/1000000) + openai_output_tokens*(15/1000000), ".4f")),
+              "accuracy": float(format(compare_json(json_return(GABARITO),json.loads(openai_response))/13,".2f")),
+          },
+          "doc-type":{
+            "type": media_type,
+            "rotations_number": rotation,
+            "distance": f"{distance}",
+            "cnh_model": cnh
+          }, 
+          "response_is_equal": openai_response == anthropic_response,
+          "day-time": f"{datetime.datetime.now()}",
+        }
+
+        data.append(content)
+        with open(DATA_PATH, "w") as json_file:
+          json.dump(data, json_file, indent=4)
 
 cnh = 0
 rotation = 0
@@ -55,14 +131,14 @@ distance = "normal"
 
 CNH_FILE = f"C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/data/cnh_{cnh}_rotated_{rotation}_{distance}.jpg"
 GABARITO = f"C:/Users/Pedro/Documents/notas/cnh_desafio/templets/cnh_{cnh}.json"
-media_type = "image/jpeg"
 DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data.json"
+PROMPT_PATH = 'C:/Users/Pedro/Documents/notas/cnh_desafio/prompt.txt'
 
-PROMPT = ''
+media_type = "image/jpeg"
 
-client_anthropic = anthropic.Anthropic(api_key=os.environ.get("ANTRHOPIC_API_KEY"))
-client_openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-cnh_file = create_file_openai(CNH_FILE)
+anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTRHOPIC_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+cnh_file = openai_create_file(CNH_FILE)
 
 cnh_models = [0,1] 
 rotats =  [0,1,2,3]
@@ -75,17 +151,18 @@ for cnh_model in cnh_models:
     for dist in dists:
       distance = dist
 
-      cnh_file_anth = create_file_anthropic(CNH_FILE)
+      cnh_file_anth = anthropic_create_file(CNH_FILE)
       start_time = time.time()
 
-      anthropic_response = make_anthropic_request()
-      print(anthropic_response)
+      anthropic_response, anthropic_input_tokens, anthropic_output_tokens = anthropic_make_request(get_prompt(PROMPT_PATH))
+      print(f"Anthropic: \n{anthropic_response}")
 
       anthropic_time = time.time() - start_time
-      print(f"\nAnthropic: {anthropic_time} seconds")
       
-      start_time = time.time()      
-      messages=[
+      print(f"\n {anthropic_time}")
+      start_time = time.time() 
+
+      message=[
         {
           "role": "user",
           "content": "Aqui está a minha carteira de motorista",
@@ -97,75 +174,15 @@ for cnh_model in cnh_models:
           ]
         }
       ]
-      thread = create_thread(messages)
-        
-      # Fazendo a requisição para o Chat GPT
-      run = client_openai.beta.threads.runs.create_and_poll(
-        thread_id = thread.id,
-        assistant_id = os.environ.get('ASSISTANT_ID')
-      )
-      openai_response = ""
-      if run.status == 'completed': 
-        messages = client_openai.beta.threads.messages.list(
-          thread_id=thread.id
-        )
-        print(messages.data[0].content[0].text.value)
-        openai_response = messages.data[0].content[0].text.value
-        openai_tokens = run.usage.completion_tokens
-      else:
-        print(run.status)
-      openai_time = time.time() - start_time
-      print(f"\nOpenAi: {openai_time} seconds")
 
-      # Deletando a thread para evitar stacking
-      client_openai.beta.threads.delete(thread.id)
+      openai_response, openai_input_tokens, openai_output_tokens, thread_id = openai_request(message)
 
-      # Abrindo o arquivo de dados
-      def return_json(path):
-        with open(path, "r") as json_file:
-          data = json.load(json_file)
-          return data
-        
-      # Comparando o JSON gerado pelas IA com o gabarito
-      def compare_json(json1, json2):
-        if isinstance(json1, dict) and isinstance(json2, dict):
-            common_keys = set(json1.keys()).intersection(set(json2.keys()))
-            equal_fields = sum([compare_json(json1[key], json2[key]) for key in common_keys])
-            return equal_fields
-        elif isinstance(json1, list) and isinstance(json2, list):
-            return sum([compare_json(item1, item2) for item1, item2 in zip(json1, json2)])
-        else:
-            return 1 if json1 == json2 else 0
+      print(f"OpenAi:\n {openai_response}")
+
+      openai_client.beta.threads.delete(thread_id)
       
-      # Função que sava os dados no arquivo Data
-      def save_data(openai_response:str, anthropic_response:str):
+      openai_time = time.time() - start_time    
 
-        with open(DATA_PATH, "r") as json_file:
-            data = json.load(json_file)
-        content = {
-          "anthropic": {
-            "time": float(format(anthropic_time,".2f")),
-            "tokens": float(format(len(anthropic_response)/4,".2f")),
-            "cost": (len(anthropic_response)/4*15)/1000000,
-            "accuracy": float(format(compare_json(return_json(GABARITO),json.loads(anthropic_response))/18,".2f")),
-          },
-          "openai":{
-              "time": float(format(openai_time,".2f")),
-              "tokens": float(format(len(openai_response)/4,".2f")),
-              "cost": (len(openai_response)/4*15)/1000000,
-              "accuracy": float(format(compare_json(return_json(GABARITO),json.loads(openai_response))/18,".2f")),
-          },
-          "doc-type":{
-            "type": media_type,
-            "rotations_number": f"{rotation}",
-            "distance": f"{distance}",
-            "cnh_model": f"{cnh}"
-          }, 
-          "response_is_equal": openai_response == anthropic_response,
-          "day-time": f"{datetime.datetime.now()}",
-        }
-        data.append(content)
-        with open(DATA_PATH, "w") as json_file:
-          json.dump(data, json_file, indent=4)
+      print(f"\n {openai_time}")
 
-      save_data(openai_response, anthropic_response)
+      save_data(openai_response, openai_input_tokens, openai_output_tokens, openai_time, anthropic_response, anthropic_input_tokens, anthropic_output_tokens, anthropic_time, cnh, rotation, distance)
