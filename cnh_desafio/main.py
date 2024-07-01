@@ -22,10 +22,14 @@ def anthropic_create_file(path):
 def openai_create_file(path):
   return openai_client.files.create(file = open(path, "rb"),purpose='vision')
   
-def json_return(path):
+def json_read(path):
   with open(path, "r") as json_file:
     data = json.load(json_file)
     return data
+
+def json_write(path, data):
+    with open(path, "w") as json_file:
+        json.dump(data, json_file, indent=4)
   
 def anthropic_make_request(prompt):
   msg = anthropic_client.messages.create(
@@ -79,19 +83,16 @@ def openai_request(message):
   
   return run_thread(create_thread(message))
 
-def compare_json(json1, json2):
-    if isinstance(json1, dict) and isinstance(json2, dict):
-        json1_lower = {key.lower(): value for key, value in json1.items()}
-        json2_lower = {key.lower(): value for key, value in json2.items()}
-        
-        common_keys = set(json1_lower.keys()).intersection(set(json2_lower.keys()))
-        
-        equal_fields = sum([compare_json(json1_lower[key], json2_lower[key]) for key in common_keys])
-        return equal_fields
-    elif isinstance(json1, list) and isinstance(json2, list):
-        return sum([compare_json(item1, item2) for item1, item2 in zip(json1, json2)])
-    else:
-        return 1 if json1 == json2 else 0
+def compare_json(templet, generated, model):
+    data = json_read(ERRORS_DATA_PATH)
+    errors = 0
+    for key, value in generated.items():
+        if key in templet:
+            if value.lower() != templet[key].lower():
+                data[model][key.lower()] += 1
+                errors += 1
+    json_write(ERRORS_DATA_PATH, data)
+    return len(templet) - errors
 
 def save_data(openai_response:str, openai_input_tokens, openai_output_tokens, openai_time, anthropic_response:str, anthropic_input_tokens, anthropic_output_tokens, anthropic_time, cnh, rotation, distance):
 
@@ -103,13 +104,13 @@ def save_data(openai_response:str, openai_input_tokens, openai_output_tokens, op
             "time": float(format(anthropic_time,".2f")),
             "tokens": anthropic_input_tokens + anthropic_output_tokens,
             "cost": float(format(anthropic_input_tokens*(3/1000000) + anthropic_output_tokens*(15/1000000), ".4f")),
-            "accuracy": float(format(compare_json(json_return(GABARITO),json.loads(anthropic_response))/13,".2f")),
+            "accuracy": float(format(compare_json(json_read(GABARITO),json.loads(anthropic_response), "anthropic")/13,".2f")),
           },
           "openai":{
               "time": float(format(openai_time,".2f")),
               "tokens": openai_input_tokens + openai_output_tokens,
               "cost": float(format(openai_input_tokens*(5/1000000) + openai_output_tokens*(15/1000000), ".4f")),
-              "accuracy": float(format(compare_json(json_return(GABARITO),json.loads(openai_response))/13,".2f")),
+              "accuracy": float(format(compare_json(json_read(GABARITO),json.loads(openai_response), "openai")/13,".2f")),
           },
           "doc-type":{
             "type": media_type,
@@ -131,8 +132,9 @@ distance = "normal"
 
 CNH_FILE = f"C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/data/cnh_{cnh}_rotated_{rotation}_{distance}.jpg"
 GABARITO = f"C:/Users/Pedro/Documents/notas/cnh_desafio/templets/cnh_{cnh}.json"
-DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data.json"
+DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data/data.json"
 PROMPT_PATH = 'C:/Users/Pedro/Documents/notas/cnh_desafio/prompt.txt'
+ERRORS_DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data/errors.json"
 
 media_type = "image/jpeg"
 
