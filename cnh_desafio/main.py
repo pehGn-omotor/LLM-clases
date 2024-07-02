@@ -31,7 +31,7 @@ def json_write(path, data):
     with open(path, "w") as json_file:
         json.dump(data, json_file, indent=4)
   
-def anthropic_make_request(prompt):
+def anthropic_make_request(prompt, cnh_file_anth):
   msg = anthropic_client.messages.create(
           model="claude-3-5-sonnet-20240620",
           max_tokens = 1024,
@@ -130,17 +130,15 @@ cnh = 0
 rotation = 0
 distance = "normal"
 
-CNH_FILE = f"C:/Users/Pedro/Documents/notas/cnh_desafio/dataset/data/cnh_{cnh}_rotated_{rotation}_{distance}.jpg"
-GABARITO = f"C:/Users/Pedro/Documents/notas/cnh_desafio/templets/cnh_{cnh}.json"
-DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data/data.json"
-PROMPT_PATH = 'C:/Users/Pedro/Documents/notas/cnh_desafio/prompt.txt'
-ERRORS_DATA_PATH = "C:/Users/Pedro/Documents/notas/cnh_desafio/data/errors.json"
+GABARITO = f"./templets/cnh_{cnh}.json"
+DATA_PATH = "./data/data.json"
+PROMPT_PATH = './prompt.txt'
+ERRORS_DATA_PATH = "data/errors.json"
 
 media_type = "image/jpeg"
 
 anthropic_client = anthropic.Anthropic(api_key=os.environ.get("ANTRHOPIC_API_KEY"))
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-cnh_file = openai_create_file(CNH_FILE)
 
 cnh_models = [0,1] 
 rotats =  [0,1,2,3]
@@ -152,17 +150,23 @@ for cnh_model in cnh_models:
     rotation = rotat
     for dist in dists:
       distance = dist
+      
+      cnh_file_path = f"./dataset/cnh_{cnh}_rotated_{rotation}_{distance}.jpg"
 
-      cnh_file_anth = anthropic_create_file(CNH_FILE)
+      cnh_file_anth = anthropic_create_file(cnh_file_path)
       start_time = time.time()
 
-      anthropic_response, anthropic_input_tokens, anthropic_output_tokens = anthropic_make_request(get_prompt(PROMPT_PATH))
+      anthropic_response, anthropic_input_tokens, anthropic_output_tokens = anthropic_make_request(get_prompt(PROMPT_PATH), cnh_file_anth)
       print(f"Anthropic: \n{anthropic_response}")
 
       anthropic_time = time.time() - start_time
       
       print(f"\n {anthropic_time}")
+
       start_time = time.time() 
+
+      cnh_file = openai_create_file(cnh_file_path)
+
 
       message=[
         {
